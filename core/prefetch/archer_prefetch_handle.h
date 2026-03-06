@@ -12,7 +12,8 @@
 class ArcherPrefetchHandle {
  public:
   ArcherPrefetchHandle(const std::string& prefix,
-                       const double device_memory_ratio = 0.8);
+                       const double device_memory_ratio = 0.8,
+                       const double host_memory_ratio = 0.8);
   ~ArcherPrefetchHandle();
 
   bool IsTensorOffloaded(const std::uint32_t tensor_id);

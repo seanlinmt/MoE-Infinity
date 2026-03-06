@@ -31,6 +31,7 @@ class HostMemoryPool : public base::noncopyable {
                        const torch::Device& device);
   int FreeMemory(const std::size_t key, void* data, const std::int64_t size,
                  const torch::Device& device);
+  void SetMemoryRatio(const double ratio);
   std::int64_t GetFreeMemory();
   std::int64_t GetMemoryCapacity();
 

@@ -142,7 +142,7 @@ class OffloadEngine(object):
 
         self.prefetch_lib = PrefetchBuilder().load() if use_jit else prefetch_op
         self.archer_engine = self.prefetch_lib.prefetch_handle(
-            self.checkpoint, _archer_config.device_memory_ratio
+            self.checkpoint, _archer_config.device_memory_ratio, _archer_config.host_memory_ratio
         )
 
         self.archer_config = _archer_config

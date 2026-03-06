@@ -9,7 +9,7 @@
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   py::class_<ArcherPrefetchHandle>(m, "prefetch_handle")
-      .def(py::init<const std::string&, const double>())
+      .def(py::init<const std::string&, const double, const double>())
 
       .def("offload", &ArcherPrefetchHandle::OffloadTensor)
       .def("register", (void(ArcherPrefetchHandle::*)(torch::Tensor&,

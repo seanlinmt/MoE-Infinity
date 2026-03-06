@@ -37,6 +37,7 @@ void* HostMemoryPool::AllocateMemory(const std::size_t key,
   }
   auto allocator = c10::HostCachingAllocator::get();
   auto data_ptr = allocator->allocate(size);
+  free_memory_ -= size;
   allocated_id_.insert(std::make_pair(key, data_ptr));
   return data_ptr;
 }
@@ -81,6 +82,12 @@ std::int64_t HostMemoryPool::GetFreeMemory() {
 }
 
 std::int64_t HostMemoryPool::GetMemoryCapacity() { return memory_capacity_; }
+
+void HostMemoryPool::SetMemoryRatio(const double ratio) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  free_memory_ = GetTotalSystemMemory() * ratio;
+  memory_capacity_ = free_memory_;
+}
 
 void* DeviceMemoryPool::AllocateMemory(const std::size_t key,
                                        const std::int64_t size,

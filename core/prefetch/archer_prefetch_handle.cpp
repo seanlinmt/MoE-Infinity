@@ -16,7 +16,8 @@
 #include "utils/logger.h"
 
 ArcherPrefetchHandle::ArcherPrefetchHandle(const std::string& prefix,
-                                           const double device_memory_ratio)
+                                           const double device_memory_ratio,
+                                           const double host_memory_ratio)
     : prefix_(prefix), last_layer_id_(0), has_cleaned_up_resources_(false) {
   // InitLogger();
   kTensorIndex = std::make_unique<ArcherTensorIndex>();
@@ -26,6 +27,7 @@ ArcherPrefetchHandle::ArcherPrefetchHandle(const std::string& prefix,
   kDeviceMemoryPool = std::make_unique<DeviceMemoryPool>();
   kHostMemoryPool = std::make_unique<HostMemoryPool>();
   kDeviceMemoryPool->SetMemoryRatio(device_memory_ratio);
+  kHostMemoryPool->SetMemoryRatio(host_memory_ratio);
   DLOG_TRACE("Free Device Memory ",
              kDeviceMemoryPool->GetFreeMemory(CUDA_DEVICE(0)));
 

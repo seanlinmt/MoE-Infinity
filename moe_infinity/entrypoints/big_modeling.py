@@ -191,8 +191,9 @@ class MoE:
 
         self.model.eval()
         with torch.no_grad():
-            return self.model.generate(input_ids, **kwargs)
+            result = self.model.generate(input_ids, **kwargs)
         self.engine.expert_dispatcher.clear_expert_cache_counts()
+        return result
 
     def forward(self, input_ids: torch.LongTensor, *args, **kwargs) -> Any:
         """
