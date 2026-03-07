@@ -85,6 +85,24 @@ class OffloadEngine(object):
         self.config = config
 
         self.quant_method = None
+        self._cleaned_up = False
+
+    def cleanup(self):
+        """Explicitly release C++ resources (task pool threads, memory pools, etc.).
+
+        Must be called while the CUDA context is still alive — i.e. before
+        Python's atexit handlers tear down PyTorch/CUDA.  Safe to call
+        multiple times; subsequent calls are no-ops.
+        """
+        if self._cleaned_up:
+            return
+        self._cleaned_up = True
+        engine = getattr(self, "archer_engine", None)
+        if engine is not None:
+            try:
+                engine.clean_up_resources()
+            except Exception:
+                pass
 
     # def init_trace(self, trace_path: str):
 
@@ -144,6 +162,10 @@ class OffloadEngine(object):
         self.archer_engine = self.prefetch_lib.prefetch_handle(
             self.checkpoint, _archer_config.device_memory_ratio, _archer_config.host_memory_ratio
         )
+
+        # Ensure C++ threads are stopped before CUDA context teardown at exit.
+        import atexit
+        atexit.register(self.cleanup)
 
         self.archer_config = _archer_config
         if _archer_config.trace_path is not None:

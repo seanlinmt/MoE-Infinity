@@ -84,11 +84,39 @@ class ArcherTaskPool : public base::noncopyable {
   ArcherTaskPool();
   ~ArcherTaskPool() {
     std::cout << "ArcherTaskPool destructor" << std::endl;
+
+    // Clear all pending tasks so threads don't start new CUDA operations.
+    ClearQueue();
+
+    // Signal all threads to exit.
     main_thread_stop_flag_.store(true);
-    // wait for all threads to stop
+
+    // Join threads with a timeout — if a thread is stuck in a CUDA call
+    // (e.g. on unified memory systems during process teardown), detach it
+    // rather than hanging the process indefinitely.
     for (auto& thread_list : exec_threads_) {
       for (auto& thread : thread_list) {
-        thread.join();
+        if (!thread.joinable()) continue;
+
+        // Use a helper thread to perform the join so we can impose a timeout.
+        std::atomic<bool> join_done{false};
+        std::thread joiner([&thread, &join_done]() {
+          thread.join();
+          join_done.store(true);
+        });
+        joiner.detach();
+
+        auto deadline = std::chrono::steady_clock::now() +
+                        std::chrono::seconds(3);
+        while (!join_done.load() &&
+               std::chrono::steady_clock::now() < deadline) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        if (!join_done.load()) {
+          // Thread is stuck — let the OS clean up on process exit.
+          std::cerr << "ArcherTaskPool: thread did not exit in time, detaching"
+                    << std::endl;
+        }
       }
     }
   }

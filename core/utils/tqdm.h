@@ -119,11 +119,13 @@ class Tqdm : public MyIteratorWrapper<_Iterator> {
 
     TQDM_IT::_incr();
     if (this->get() == e) {
-      printf("\nfinished: %" PRIu64 "/%" PRIu64 "\n",
-             static_cast<std::uint64_t>(self.total),
-             static_cast<std::uint64_t>(self.total));
-    } else
-      printf("\r%" PRIi64 " left", (int64_t)(e - this->get()));
+      // printf("\nfinished: %" PRIu64 "/%" PRIu64 "\n",
+      //        static_cast<std::uint64_t>(self.total),
+      //        static_cast<std::uint64_t>(self.total));
+    } else {
+      // printf("\r%" PRIi64 " left", (int64_t)(e - this->get()));
+      // fflush(stdout);
+    }
   }
   virtual void _incr() override { ((Tqdm const&)*this)._incr(); }
 };

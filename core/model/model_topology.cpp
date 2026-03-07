@@ -533,7 +533,19 @@ void ArcherTopologyHandle::InitializeTopology(
   for (auto& node_ptr : tqdm::tqdm(sparse_nodes)) {
     node_ptr->default_device = torch::Device(torch::kCUDA, target_device_id);
     target_device_id = (target_device_id + 1) % num_gpu;
-    node_ptr->SetDevice(CPU_DEVICE, false);
+    
+    // Check if we have enough memory in the host pool
+    // 0.05 * kHostMemoryPool->GetMemoryCapacity() is a safety buffer
+    if (kHostMemoryPool->GetFreeMemory() >= (std::int64_t)node_ptr->byte_size) {
+      node_ptr->default_host = CPU_DEVICE;
+      node_ptr->initial_host = CPU_DEVICE;
+      node_ptr->SetDevice(CPU_DEVICE, false);
+    } else {
+      // Leave it on disk
+      node_ptr->default_host = DISK_DEVICE;
+      node_ptr->initial_host = DISK_DEVICE;
+      // Do not call SetDevice(CPU_DEVICE) so it stays on DISK
+    }
   }
 
   DLOG_TRACE("InitializeTopology pipeline_.stages.size() {}",

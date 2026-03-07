@@ -50,7 +50,13 @@ class SyncNllbMoeSparseMLP(nn.Module):
     ):
         batch_size, sequence_length, hidden_dim = hidden_states.shape
 
-        top_1_mask, router_probs = self.router(hidden_states, padding_mask)
+        router_outputs = self.router(hidden_states.view(-1, hidden_dim), padding_mask)
+        
+        if len(router_outputs) == 3:
+            top_1_mask, router_probs, _ = router_outputs
+        else:
+            top_1_mask, router_probs = router_outputs[:2]
+
         combining_weights = router_probs.reshape(
             (batch_size, sequence_length, self.num_experts)
         )
@@ -84,9 +90,13 @@ class SyncNllbMoeSparseMLP(nn.Module):
         for output, _, idx, _ in results:
             token_indices = router_mask[..., idx].bool()
             weights = combining_weights[..., idx]
-            # print(router_mask.shape, combining_weights.shape, hidden_states.shape, flush=True)
-            # print(output.shape, weights.shape, token_indices.shape, next_states.shape, flush=True)
-            # print(output.shape, weights[token_indices].shape, next_states[token_indices].shape, flush=True)
+
+            if self.moe_token_dropout > 0:
+                if self.training:
+                    output = self.token_dropout(output)
+                else:
+                    output = output * (1 - self.moe_token_dropout)
+
             next_states[token_indices] += torch.einsum(
                 "b,be->be", weights[token_indices], output.to(weights.device)
             )
@@ -100,10 +110,5 @@ class SyncNllbMoeSparseMLP(nn.Module):
         #         expert_output = expert(hidden_states[token_indices]).to(weights.device)
         #         next_states[token_indices] += torch.einsum("b,be->be", weights[token_indices], expert_output)
 
-        next_states[next_states == 0] = hidden_states[next_states == 0]
-        hidden_states = next_states
+        return next_states
 
-        return hidden_states, (
-            router_probs.to("cuda:0", non_blocking=True),
-            top_1_expert_index.to("cuda:0", non_blocking=True),
-        )
