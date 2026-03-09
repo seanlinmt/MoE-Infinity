@@ -517,16 +517,44 @@ class OffloadEngine(object):
 
                 # the case for NLLB MoE
                 if "lm_head.weight" not in self.name_id_map:
-                    print(
-                        "lm_head.weight not in name_id_map, add it as embed_tokens"
-                    )
-                    self.name_id_map["lm_head.weight"] = 0
-                    self.name_id_map["encoder.embed_tokens.weight"] = 0
-                    self.name_id_map["decoder.embed_tokens.weight"] = 0
+                    # Find the shared ID. Typically it's 0 (the first tensor offloaded),
+                    # but we look for it under known names to be more robust.
+                    shared_id = 0
+                    for k in self.name_id_map.keys():
+                        if k.endswith("shared.weight") or k.endswith("embed_tokens.weight"):
+                            shared_id = self.name_id_map[k]
+                            break
 
-                    model.lm_head.weight.ar_id = 0
-                    model.model.encoder.embed_tokens.weight.ar_id = 0
-                    model.model.decoder.embed_tokens.weight.ar_id = 0
+                    print(
+                        f"lm_head.weight not in name_id_map, adding it and embed_tokens as tied weights (ID={shared_id})"
+                    )
+
+                    # Add both prefixed and unprefixed names to name_id_map to ensure they
+                    # are correctly identified by runtime hooks and appear in the topology statistics.
+                    tied_names = [
+                        "lm_head.weight",
+                        f"{base_model_prefix}.shared.weight",
+                        "shared.weight",
+                        f"{base_model_prefix}.encoder.embed_tokens.weight",
+                        "encoder.embed_tokens.weight",
+                        f"{base_model_prefix}.decoder.embed_tokens.weight",
+                        "decoder.embed_tokens.weight",
+                    ]
+                    for name in tied_names:
+                        self.name_id_map[name] = shared_id
+
+                    # Explicitly set ar_id for the current model instance parameters
+                    if hasattr(model, "lm_head"):
+                        model.lm_head.weight.ar_id = shared_id
+
+                    # NLLB ForConditionalGeneration attribute structure
+                    _base_model = getattr(model, base_model_prefix, model)
+                    if hasattr(_base_model, "shared"):
+                        _base_model.shared.weight.ar_id = shared_id
+                    if hasattr(_base_model, "encoder") and hasattr(_base_model.encoder, "embed_tokens"):
+                        _base_model.encoder.embed_tokens.weight.ar_id = shared_id
+                    if hasattr(_base_model, "decoder") and hasattr(_base_model.decoder, "embed_tokens"):
+                        _base_model.decoder.embed_tokens.weight.ar_id = shared_id
 
                 self.expert_tensor_map = dict()
                 for name, id in self.name_id_map.items():
