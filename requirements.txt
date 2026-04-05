@@ -2,7 +2,7 @@ accelerate
 chardet
 datasets>=2.12.0
 fastapi
-flash-attn
+#flash-attn # only supported with CUDA
 hjson
 ninja
 numpy
