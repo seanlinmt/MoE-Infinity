@@ -157,7 +157,7 @@ _ENGINE_SOURCES = [
 ext_modules = []
 
 if cuda_available:
-    _cuda_arch_flags = ["-gencode=arch=compute_80,code=sm_80"]
+    _cuda_arch_flags = ["-gencode=arch=compute_75,code=sm_75", "-gencode=arch=compute_80,code=sm_80"]
     if os.environ.get("MOE_ENABLE_SM90", "1") == "1":
         _cuda_arch_flags.append("-gencode=arch=compute_90,code=sm_90")
 
